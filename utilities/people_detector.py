@@ -79,8 +79,8 @@ def detect_persons_in_video(video_path, counter):
         if not ret:
             break
 
-        frame = imutils.resize(frame, width=600)
-        total_frames += 1
+        # Increase frame size
+        frame = imutils.resize(frame, width=800)
 
         (H, W) = frame.shape[:2]
 
@@ -90,19 +90,21 @@ def detect_persons_in_video(video_path, counter):
 
         boxes = []  # Initialize list to store bounding box coordinates
 
+        count = 0  # Initialize count of persons detected in the current frame
+
         for i in np.arange(0, per_detect.shape[2]):
             confidence = per_detect[0, 0, i, 2]
             if confidence > 0.5:
                 index = int(per_detect[0, 0, i, 1])
 
-                if CLASSES[index] != "person":
-                    continue
+                if CLASSES[index] == "person":
+                    count += 1  # Increment count when a person is detected
 
-                p_box = per_detect[0, 0, i, 3:7] * np.array([W, H, W, H])
-                (startX, startY, endX, endY) = p_box.astype('int')
+                    p_box = per_detect[0, 0, i, 3:7] * np.array([W, H, W, H])
+                    (startX, startY, endX, endY) = p_box.astype('int')
 
-                # Append bounding box coordinates
-                boxes.append([startX, startY, endX, endY])
+                    # Append bounding box coordinates
+                    boxes.append([startX, startY, endX, endY])
 
         # Apply Non-Maximum Suppression
         boxes = np.array(boxes)
@@ -111,12 +113,20 @@ def detect_persons_in_video(video_path, counter):
         for (startX, startY, endX, endY) in nms_boxes:
             cv2.rectangle(frame, (startX, startY),
                           (endX, endY), (0, 0, 255), 2)
-            counter.increment()  # Increment the counter when a person is detected
 
-        cv2.putText(frame, f"Persons: {counter.get_count()}",
-                    (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1)
+        # Increment the global counter with the count of persons detected in the current frame
+        counter.increment(count)
+
+        # Display count of persons detected in the current frame
+        cv2.putText(frame, f"Persons in frame: {count}",
+                    (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+
+        # Display overall count of persons detected
+        cv2.putText(frame, f"Total persons detected: {counter.get_count()}",
+                    (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (155, 200, 0), 2)
 
         # Calculate average FPS and display it on the frame
+        total_frames += 1
         fps_end_time = datetime.datetime.now()
         time_diff = fps_end_time - fps_start_time
         if time_diff.seconds == 0:
@@ -124,10 +134,12 @@ def detect_persons_in_video(video_path, counter):
         else:
             fps = (total_frames / time_diff.seconds)
         fps_text = f"Average FPS: {fps:.2f}"
-        cv2.putText(frame, fps_text, (10, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
+        cv2.putText(frame, fps_text, (10, 150),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
+        # Display the modified frame
         cv2.imshow("Result", frame)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -138,7 +150,7 @@ def detect_persons_in_video(video_path, counter):
 def detect_persons_in_image(image_path, counter):
     frame = cv2.imread(image_path)
 
-    frame = imutils.resize(frame, width=500)
+    frame = imutils.resize(frame, width=550)
     (H, W) = frame.shape[:2]
 
     blb = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
@@ -176,7 +188,7 @@ def detect_persons_in_image(image_path, counter):
 
     # Put text on the image indicating the count of detected persons
     cv2.putText(frame, f"Persons detected: {
-                count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+                count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (150, 255, 100), 2)
 
     # Display the modified image
     cv2.imshow("Modified Image", frame)
