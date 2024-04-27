@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import imutils
 import os
+import datetime
 
 # Get the path to the directory containing this script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,7 @@ detector = cv2.dnn.readNetFromCaffe(prototxt=protopth, caffeModel=modelpth)
 
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
            "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+
 
 def non_max_suppression(boxes, overlap_thresh=0.3):
     if len(boxes) == 0:
@@ -56,10 +58,12 @@ def non_max_suppression(boxes, overlap_thresh=0.3):
         overlap = (w * h) / area[idxs[:last]]
 
         # Delete all indexes from the index list that have overlap greater than the specified overlap threshold
-        idxs = np.delete(idxs, np.concatenate(([last], np.where(overlap > overlap_thresh)[0])))
+        idxs = np.delete(idxs, np.concatenate(
+            ([last], np.where(overlap > overlap_thresh)[0])))
 
     # Return only the bounding boxes that were picked
     return boxes[pick]
+
 
 def detect_persons_in_video(video_path, counter):
     cap = cv2.VideoCapture(video_path)
@@ -67,19 +71,24 @@ def detect_persons_in_video(video_path, counter):
         print("Error: Could not open video.")
         return
 
+    fps_start_time = datetime.datetime.now()
+    total_frames = 0
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
         frame = imutils.resize(frame, width=600)
+        total_frames += 1
+
         (H, W) = frame.shape[:2]
 
         blb = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
         detector.setInput(blb)
         per_detect = detector.forward()
 
-        boxes = []
+        boxes = []  # Initialize list to store bounding box coordinates
 
         for i in np.arange(0, per_detect.shape[2]):
             confidence = per_detect[0, 0, i, 2]
@@ -92,6 +101,7 @@ def detect_persons_in_video(video_path, counter):
                 p_box = per_detect[0, 0, i, 3:7] * np.array([W, H, W, H])
                 (startX, startY, endX, endY) = p_box.astype('int')
 
+                # Append bounding box coordinates
                 boxes.append([startX, startY, endX, endY])
 
         # Apply Non-Maximum Suppression
@@ -99,10 +109,24 @@ def detect_persons_in_video(video_path, counter):
         nms_boxes = non_max_suppression(boxes)
 
         for (startX, startY, endX, endY) in nms_boxes:
-            cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
+            cv2.rectangle(frame, (startX, startY),
+                          (endX, endY), (0, 0, 255), 2)
             counter.increment()  # Increment the counter when a person is detected
 
-        cv2.putText(frame, f"Persons: {counter.get_count()}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(frame, f"Persons: {counter.get_count()}",
+                    (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1)
+
+        # Calculate average FPS and display it on the frame
+        fps_end_time = datetime.datetime.now()
+        time_diff = fps_end_time - fps_start_time
+        if time_diff.seconds == 0:
+            fps = 0.0
+        else:
+            fps = (total_frames / time_diff.seconds)
+        fps_text = f"Average FPS: {fps:.2f}"
+        cv2.putText(frame, fps_text, (10, 100),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
+
         cv2.imshow("Result", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -122,7 +146,7 @@ def detect_persons_in_image(image_path, counter):
     per_detect = detector.forward()
 
     # Initialize the count of detected persons
-    count = 0  
+    count = 0
 
     for i in np.arange(0, per_detect.shape[2]):
         confidence = per_detect[0, 0, i, 2]
@@ -133,14 +157,16 @@ def detect_persons_in_image(image_path, counter):
                 count += 1  # Increment count when a person is detected
 
                 # Extract coordinates for the bounding box
-                startX, startY, endX, endY = (per_detect[0, 0, i, 3:7] * np.array([W, H, W, H])).astype("int")
+                startX, startY, endX, endY = (
+                    per_detect[0, 0, i, 3:7] * np.array([W, H, W, H])).astype("int")
 
                 # Calculate center coordinates of the bounding box
                 centerX = int((startX + endX) / 2)
                 centerY = int((startY + endY) / 2)
 
                 # Draw the bounding box rectangle
-                cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                cv2.rectangle(frame, (startX, startY),
+                              (endX, endY), (0, 255, 0), 2)
 
                 # Draw a red dot at the center of the bounding box
                 cv2.circle(frame, (centerX, centerY), 5, (0, 0, 255), -1)
@@ -149,7 +175,8 @@ def detect_persons_in_image(image_path, counter):
     counter.increment(count)
 
     # Put text on the image indicating the count of detected persons
-    cv2.putText(frame, f"Persons detected: {count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"Persons detected: {
+                count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
 
     # Display the modified image
     cv2.imshow("Modified Image", frame)
