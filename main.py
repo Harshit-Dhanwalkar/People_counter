@@ -1,4 +1,5 @@
 # main.py
+
 from utilities.counter import PersonCounter
 from utilities.people_detector import detect_persons_in_video
 from utilities.people_detector import detect_persons_in_image
@@ -14,4 +15,4 @@ if __name__ == "__main__":
 
     detect_persons_in_video(video_path1, counter)
     detect_persons_in_video(video_path2, counter)
-    detect_persons_in_image(image_path1, counter)0
+    detect_persons_in_image(image_path1, counter)

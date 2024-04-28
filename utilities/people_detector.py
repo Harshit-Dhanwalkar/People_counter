@@ -1,3 +1,5 @@
+#  main.py
+
 import cv2
 import numpy as np
 import imutils
@@ -13,8 +15,9 @@ modelpth = os.path.join(script_dir, "MobileNetSSD_deploy.caffemodel")
 
 detector = cv2.dnn.readNetFromCaffe(prototxt=protopth, caffeModel=modelpth)
 
-CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-           "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus",
+           "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike",
+           "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 
 
 def non_max_suppression(boxes, overlap_thresh=0.3):
@@ -73,14 +76,19 @@ def detect_persons_in_video(video_path, counter):
 
     fps_start_time = datetime.datetime.now()
     total_frames = 0
+    frame_skip = 3  # Process every 5th frame
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Increase frame size
-        frame = imutils.resize(frame, width=800)
+        total_frames += 1
+
+        if total_frames % frame_skip != 0:
+            continue  # Skip this frame
+
+        frame = imutils.resize(frame, width=640)
 
         (H, W) = frame.shape[:2]
 
@@ -94,7 +102,7 @@ def detect_persons_in_video(video_path, counter):
 
         for i in np.arange(0, per_detect.shape[2]):
             confidence = per_detect[0, 0, i, 2]
-            if confidence > 0.5:
+            if confidence > 0.1:
                 index = int(per_detect[0, 0, i, 1])
 
                 if CLASSES[index] == "person":
@@ -122,11 +130,10 @@ def detect_persons_in_video(video_path, counter):
                     (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
 
         # Display overall count of persons detected
-        cv2.putText(frame, f"Total persons detected: {counter.get_count()}",
-                    (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (155, 200, 0), 2)
+        # cv2.putText(frame, f"Total persons detected: {counter.get_count()}",
+        #            (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (155, 200, 0), 2)
 
         # Calculate average FPS and display it on the frame
-        total_frames += 1
         fps_end_time = datetime.datetime.now()
         time_diff = fps_end_time - fps_start_time
         if time_diff.seconds == 0:
@@ -150,7 +157,7 @@ def detect_persons_in_video(video_path, counter):
 def detect_persons_in_image(image_path, counter):
     frame = cv2.imread(image_path)
 
-    frame = imutils.resize(frame, width=550)
+    frame = imutils.resize(frame, width=525)
     (H, W) = frame.shape[:2]
 
     blb = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
